@@ -3,7 +3,7 @@
   // Config
   // =============================
   const CONFIG = {
-    BASE_URL: "https://411f629d884a.ngrok-free.app", // backend base URL (change as needed)
+    BASE_URL: "https://282274fc051a.ngrok-free.app", // backend base URL (change as needed)
     API_KEY: "test-api-key-123", // your API key if required
   };
 
@@ -14,8 +14,16 @@
   };
 
   // =============================
-  // Utility functions
+  // Utility functions and variables
   // =============================
+  function getMainDomain(hostname = window.location.hostname) {
+    const parts = hostname.split(".");
+    // localhost
+    if (parts.length <= 2) return hostname;
+    return parts.slice(-2).join(".");
+  }
+  const domain = getMainDomain();
+
   function getCookie(name) {
     const value = document.cookie
       .split("; ")
@@ -23,17 +31,10 @@
     return value ? decodeURIComponent(value.split("=")[1]) : null;
   }
 
-  function setOrUpdateCookie(name, value, days = 30, domain = null) {
+  function setOrUpdateCookie(name, value, days = 30) {
     let cookieStr = `${name}=${encodeURIComponent(value)}; path=/; max-age=${days * 24 * 60 * 60}`;
     if (domain) cookieStr += `; domain=${domain}`;
     document.cookie = cookieStr;
-  }
-
-  function getMainDomain(hostname = window.location.hostname) {
-    const parts = hostname.split(".");
-    // localhost
-    if (parts.length <= 2) return hostname;
-    return parts.slice(-2).join(".");
   }
 
   function postJSON(path, data) {
@@ -59,12 +60,13 @@
   // Capturing & Storing partnerId
   // =============================
   (function handlePartnerId() {
+    const partnerId = getCookie(COOKIE_KEYS.PARTNER_ID);
     const urlParams = new URLSearchParams(window.location.search);
-    const urlPartnerId = urlParams.get('partner_id');
-    const domain = getMainDomain();
+    const urlPartnerId = urlParams.get("partner_id");
 
-    if (urlPartnerId) {
-      setOrUpdateCookie(COOKIE_KEYS.PARTNER_ID, urlPartnerId, 30, domain);
+    // no override old partnerId
+    if (urlPartnerId && (!partnerId || urlPartnerId == partnerId)) {
+      setOrUpdateCookie(COOKIE_KEYS.PARTNER_ID, urlPartnerId, 30);
     }
   })();
 
@@ -125,33 +127,35 @@
   })();
 
   // =============================
-  // Linking Member & Order Data
+  // Linking Member Data
   // =============================
-  (async function memberAndOrderFlow() {
-    const domain = getMainDomain();
+
+  (async function handleMemberLinking() {
     const partnerId = getCookie(COOKIE_KEYS.PARTNER_ID);
 
     let memberId = null;
 
-    // a free custom page
+    // fetch member info
     const res = await fetch("/view/page/metadata-member", {
       cache: "no-store",
       credentials: "same-origin",
     });
     if (!res.ok) {
       console.log("Bad response: " + res.status);
-    } else {
-      const json = await res.json();
-      memberId = json.member_id | null;
+      return;
     }
+
+    const json = await res.json();
+    memberId = json.member_id || null;
 
     let cookieMemberId = getCookie(COOKIE_KEYS.MEMBER_ID);
     let isMemberLinked = getCookie(COOKIE_KEYS.IS_MEMBER_LINKED) === "true";
 
     if (memberId) {
+      memberId = memberId.toString();
       if (memberId !== cookieMemberId) {
-        setOrUpdateCookie(COOKIE_KEYS.MEMBER_ID, memberId, 30, domain);
-        setOrUpdateCookie(COOKIE_KEYS.IS_MEMBER_LINKED, "false", 30, domain);
+        setOrUpdateCookie(COOKIE_KEYS.MEMBER_ID, memberId, 30);
+        setOrUpdateCookie(COOKIE_KEYS.IS_MEMBER_LINKED, "false", 30);
         isMemberLinked = false;
       }
 
@@ -164,7 +168,7 @@
           });
 
           if (res.status === 201) {
-            setOrUpdateCookie(COOKIE_KEYS.IS_MEMBER_LINKED, "true", 30, domain);
+            setOrUpdateCookie(COOKIE_KEYS.IS_MEMBER_LINKED, "true", 30);
             console.log("Member linked:", res.body.message);
           } else {
             console.warn("Member linking failed:", res.body);
@@ -174,27 +178,34 @@
         }
       }
     }
+  })();
 
-    if (window.location.pathname.includes("/ssl/orderin.html")) {
-      const orderId = getOrderId();
+  // =============================
+  // Linking Order Data
+  // =============================
+  (async function handleOrderLinking() {
+    const partnerId = getCookie(COOKIE_KEYS.PARTNER_ID);
+    const memberId = getCookie(COOKIE_KEYS.MEMBER_ID); // may be null
+    const orderId = window.location.pathname.includes("/ssl/orderin.html")
+      ? getOrderId()
+      : null;
 
-      if (partnerId && orderId) {
-        try {
-          const res = await postJSON("/api/v1/makeshop-linking", {
-            partnerId,
-            memberId,
-            orderId,
-            session: document.cookie,
-          });
+    if (partnerId && orderId) {
+      try {
+        const res = await postJSON("/api/v1/makeshop-linking", {
+          partnerId,
+          memberId,
+          orderId,
+          session: document.cookie,
+        });
 
-          if (res.status === 201) {
-            console.log("Order linked:", res.body.message);
-          } else {
-            console.warn("Order linking failed:", res.body);
-          }
-        } catch (err) {
-          console.error("Order linking error:", err);
+        if (res.status === 201) {
+          console.log("Order linked:", res.body.message);
+        } else {
+          console.warn("Order linking failed:", res.body);
         }
+      } catch (err) {
+        console.error("Order linking error:", err);
       }
     }
   })();
