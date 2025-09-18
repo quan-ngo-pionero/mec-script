@@ -27,6 +27,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// app.get("/my-script.js", (req, res) => {
+//   res.type("application/javascript");
+//   res.set("Cross-Origin-Resource-Policy", "cross-origin"); // 👈 tell Chrome it's safe
+//   res.sendFile(path.join(__dirname, "public", "my-script.js"));
+// });
+
 // Middleware to check API key
 app.use((req, res, next) => {
   const apiKey = req.headers["x-api-key"];
@@ -43,8 +49,8 @@ app.get("/api/setting/site/:partnerId", (req, res) => {
   // Example mock data
   const mockSettings = {
     abc123: {
-      logo: "abc123-logo.png",
-      topImage: "abc123-top.png",
+      logo: "cat.jpg",
+      topImage: "cat.jpg",
       mainColor: "#FF0000",
       subColor: "#00FF00",
       headerTextColor: "#000000",
@@ -52,8 +58,8 @@ app.get("/api/setting/site/:partnerId", (req, res) => {
       status: "ACTIVE",
     },
     fg001: {
-      logo: "fg001-logo.png",
-      topImage: "fg001-top.png",
+      logo: "cat4.jpg",
+      topImage: "cat4.jpg",
       mainColor: "#0000FF",
       subColor: "#FFFF00",
       headerTextColor: "#FFFFFF",

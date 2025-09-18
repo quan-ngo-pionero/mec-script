@@ -3,7 +3,7 @@ jQuery(function ($) {
   // Config
   // =============================
   var CONFIG = {
-    BASE_URL: "https://opuscular-mica-tangiest.ngrok-free.app", // backend base URL
+    BASE_URL: "https://mec-test-server.onrender.com", // backend base URL
     API_KEY: "test-api-key-123", // your API key
   };
 
@@ -16,6 +16,36 @@ jQuery(function ($) {
   // =============================
   // Utility functions
   // =============================
+
+  function applyCustomization(data) {
+    try {
+      if (data.logo) {
+        $(".logo").attr("src", data.logo);
+      }
+      if (data.topImage) {
+        $(".topImage").attr("src", data.topImage);
+      }
+      if (data.mainColor) {
+        $(".header-recommend").css("background", data.mainColor);
+      }
+      if (data.subColor) {
+      }
+      if (data.headerTextColor) {
+        $(".header-text").css("color", data.headerTextColor);
+      }
+      if (data.headerText) {
+        $(".header-text").text(data.headerText);
+      }
+      console.log("Applied customization");
+    } catch (error) {
+      console.error("Customization error:", xhr);
+    }
+  }
+
+  function getResourceURL(filename) {
+    return `${CONFIG.BASE_URL}/resources/${filename}`;
+  }
+
   function getMainDomain(hostname) {
     hostname = hostname || window.location.hostname;
     var parts = hostname.split(".");
@@ -83,24 +113,12 @@ jQuery(function ($) {
       headers: { "x-api-key": CONFIG.API_KEY },
       success: function (data) {
         if (data.logo) {
-          // $("#partner-logo").attr("src", "/resources/" + data.logo);
+          data.logo = getResourceURL(data.logo);
         }
         if (data.topImage) {
-          // $("#partner-top-image").attr("src", "/resources/" + data.topImage);
+          data.topImage = getResourceURL(data.topImage);
         }
-        if (data.mainColor) {
-          // document.documentElement.style.setProperty("--main-color", data.mainColor);
-        }
-        if (data.subColor) {
-          // document.documentElement.style.setProperty("--sub-color", data.subColor);
-        }
-        if (data.headerTextColor) {
-          // document.documentElement.style.setProperty("--header-text-color", data.headerTextColor);
-        }
-        if (data.headerText) {
-          // $("#partner-header-text").text(data.headerText);
-        }
-        console.log("Applied customization");
+        applyCustomization(data);
       },
       error: function (xhr) {
         console.error("Customization error:", xhr);
