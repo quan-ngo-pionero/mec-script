@@ -103,7 +103,6 @@ jQuery(function ($) {
   // Customizing Site (only on home page)
   // =============================
   function customizeSite() {
-    if (window.location.pathname !== "/") return;
 
     var partnerId = getCookie(COOKIE_KEYS.PARTNER_ID);
     if (!partnerId) return;
