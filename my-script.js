@@ -4,12 +4,11 @@ jQuery(function ($) {
   // =============================
   var CONFIG = {
     BASE_URL: "https://mec-test-server.onrender.com", // backend base URL
-    API_KEY: "test-api-key-123", // your API key
   };
 
   var COOKIE_KEYS = {
     PARTNER_ID: "partner_id",
-    MEMBER_ID: "member_id",
+    LOGIN_ID: "login_id",
     IS_MEMBER_LINKED: "is_member_linked",
   };
 
@@ -38,12 +37,12 @@ jQuery(function ($) {
       }
       console.log("Applied customization");
     } catch (error) {
-      console.error("Customization error:", xhr);
+      console.error("Customization error:", error);
     }
   }
 
   function getResourceURL(filename) {
-    return `${CONFIG.BASE_URL}/resources/${filename}`;
+    return CONFIG.BASE_URL + "/resources/" + filename;
   }
 
   function getMainDomain(hostname) {
@@ -71,12 +70,17 @@ jQuery(function ($) {
     document.cookie = cookieStr;
   }
 
+  function removeCookie(name) {
+    var cookieStr = name + "=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    if (domain) cookieStr += "; domain=" + domain;
+    document.cookie = cookieStr;
+  }
+
   function postJSON(path, data) {
     return $.ajax({
       url: CONFIG.BASE_URL + path,
       method: "POST",
       contentType: "application/json",
-      headers: { "x-api-key": CONFIG.API_KEY },
       data: JSON.stringify(data),
     });
   }
@@ -103,13 +107,11 @@ jQuery(function ($) {
   // Customizing Site (only on home page)
   // =============================
   function customizeSite() {
-
     var partnerId = getCookie(COOKIE_KEYS.PARTNER_ID);
     if (!partnerId) return;
 
     $.ajax({
       url: CONFIG.BASE_URL + "/api/setting/site/" + partnerId,
-      headers: { "x-api-key": CONFIG.API_KEY },
       success: function (data) {
         if (data.logo) {
           data.logo = getResourceURL(data.logo);
@@ -120,6 +122,7 @@ jQuery(function ($) {
         applyCustomization(data);
       },
       error: function (xhr) {
+        removeCookie(COOKIE_KEYS.PARTNER_ID);
         console.error("Customization error:", xhr);
       },
     });
@@ -130,47 +133,31 @@ jQuery(function ($) {
   // =============================
   function handleMemberLinking() {
     var partnerId = getCookie(COOKIE_KEYS.PARTNER_ID);
+    var memberId = getCookie(COOKIE_KEYS.LOGIN_ID);
 
-    $.ajax({
-      url: "/view/page/metadata-member",
-      cache: false,
-      xhrFields: { withCredentials: true },
-      success: function (json) {
-        var memberId = json.member_id ? json.member_id.toString() : null;
-        var cookieMemberId = getCookie(COOKIE_KEYS.MEMBER_ID);
-        var isMemberLinked = getCookie(COOKIE_KEYS.IS_MEMBER_LINKED) === "true";
+    if (memberId) {
+      var isMemberLinkedKey = COOKIE_KEYS.IS_MEMBER_LINKED + "_" + memberId;
+      var isMemberLinked = getCookie(isMemberLinkedKey) === "true";
 
-        if (memberId) {
-          if (memberId !== cookieMemberId) {
-            setOrUpdateCookie(COOKIE_KEYS.MEMBER_ID, memberId, 30);
-            setOrUpdateCookie(COOKIE_KEYS.IS_MEMBER_LINKED, "false", 30);
-            isMemberLinked = false;
-          }
-
-          if (!isMemberLinked && partnerId && memberId) {
-            postJSON("/api/v1/makeshop-linking", {
-              partnerId: partnerId,
-              memberId: memberId,
-              session: document.cookie,
-            })
-              .done(function (res, textStatus, xhr) {
-                if (xhr.status === 201) {
-                  setOrUpdateCookie(COOKIE_KEYS.IS_MEMBER_LINKED, "true", 30);
-                  console.log("Member linked:", res.message);
-                } else {
-                  console.warn("Member linking failed:", res);
-                }
-              })
-              .fail(function (xhr) {
-                console.error("Member linking error:", xhr);
-              });
-          }
-        }
-      },
-      error: function (xhr) {
-        console.log("Bad response: " + xhr.status);
-      },
-    });
+      if (!isMemberLinked && partnerId && memberId) {
+        postJSON("/api/v1/makeshop-linking", {
+          partnerId: partnerId,
+          memberId: memberId,
+          session: document.cookie,
+        })
+          .done(function (res, textStatus, xhr) {
+            if (xhr.status === 201) {
+              setOrUpdateCookie(isMemberLinkedKey, "true", 30);
+              console.log("Member linked:", res.message);
+            } else {
+              console.warn("Member linking failed:", res);
+            }
+          })
+          .fail(function (xhr) {
+            console.error("Member linking error:", xhr);
+          });
+      }
+    }
   }
 
   // =============================
