@@ -8,7 +8,7 @@ jQuery(function ($) {
 
   var COOKIE_KEYS = {
     PARTNER_ID: "partner_id",
-    LOGIN_ID: "login_id",
+    MEMBER_ID: "member_id",
     IS_MEMBER_LINKED: "is_member_linked",
   };
 
@@ -121,9 +121,9 @@ jQuery(function ($) {
         }
         applyCustomization(data);
       },
-      error: function (xhr) {
+      error: function (error) {
         removeCookie(COOKIE_KEYS.PARTNER_ID);
-        console.error("Customization error:", xhr);
+        console.error("Customization error:", error);
       },
     });
   }
@@ -133,31 +133,46 @@ jQuery(function ($) {
   // =============================
   function handleMemberLinking() {
     var partnerId = getCookie(COOKIE_KEYS.PARTNER_ID);
-    var memberId = getCookie(COOKIE_KEYS.LOGIN_ID);
 
-    if (memberId) {
-      var isMemberLinkedKey = COOKIE_KEYS.IS_MEMBER_LINKED + "_" + memberId;
-      var isMemberLinked = getCookie(isMemberLinkedKey) === "true";
+    $.ajax({
+      url: "/view/page/metadata-member",
+      cache: false,
+      success: function (json) {
+        var memberId = json.member_id ? json.member_id.toString() : null;
 
-      if (!isMemberLinked && partnerId && memberId) {
-        postJSON("/api/v1/makeshop-linking", {
-          partnerId: partnerId,
-          memberId: memberId,
-          session: document.cookie,
-        })
-          .done(function (res, textStatus, xhr) {
-            if (xhr.status === 201) {
-              setOrUpdateCookie(isMemberLinkedKey, "true", 30);
-              console.log("Member linked:", res.message);
-            } else {
-              console.warn("Member linking failed:", res);
-            }
-          })
-          .fail(function (xhr) {
-            console.error("Member linking error:", xhr);
-          });
-      }
-    }
+        if (memberId) {
+          var isMemberLinkedKey = COOKIE_KEYS.IS_MEMBER_LINKED + "_" + memberId;
+          var isMemberLinked = getCookie(isMemberLinkedKey) === "true";
+          var cookieMemberId = getCookie(COOKIE_KEYS.MEMBER_ID);
+
+          if (memberId !== cookieMemberId) {
+            setOrUpdateCookie(COOKIE_KEYS.MEMBER_ID, memberId, 30);
+          }
+
+          if (!isMemberLinked && partnerId && memberId) {
+            postJSON("/api/v1/makeshop-linking", {
+              partnerId: partnerId,
+              memberId: memberId,
+              session: document.cookie,
+            })
+              .done(function (res, textStatus, xhr) {
+                if (xhr.status === 201) {
+                  setOrUpdateCookie(isMemberLinkedKey, "true", 30);
+                  console.log("Member linked:", res.message);
+                } else {
+                  console.warn("Member linking failed:", res);
+                }
+              })
+              .fail(function (error) {
+                console.error("Member linking error:", error);
+              });
+          }
+        }
+      },
+      error: function (error) {
+        console.log("Bad response: " + error);
+      },
+    });
   }
 
   // =============================
